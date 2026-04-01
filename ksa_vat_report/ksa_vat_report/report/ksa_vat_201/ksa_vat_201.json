@@ -1,0 +1,49 @@
+{
+ "add_total_row": 0,
+ "columns": [],
+ "disabled": 0,
+ "docstatus": 0,
+ "doctype": "Report",
+ "filters": [
+  {
+   "default": null,
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "mandatory": 1,
+   "options": "Company"
+  },
+  {
+   "default": null,
+   "fieldname": "from_date",
+   "fieldtype": "Date",
+   "label": "From Date",
+   "mandatory": 1
+  },
+  {
+   "default": null,
+   "fieldname": "to_date",
+   "fieldtype": "Date",
+   "label": "To Date",
+   "mandatory": 1
+  }
+ ],
+ "idx": 0,
+ "is_standard": "Yes",
+ "module": "KSA VAT Report",
+ "name": "KSA VAT 201",
+ "ref_doctype": "Sales Invoice",
+ "report_name": "KSA VAT 201",
+ "report_type": "Script Report",
+ "roles": [
+  {
+   "role": "Accounts User"
+  },
+  {
+   "role": "Accounts Manager"
+  },
+  {
+   "role": "System Manager"
+  }
+ ]
+}

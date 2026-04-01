@@ -1,0 +1,2 @@
+include MANIFEST.in
+recursive-include ksa_vat_report *.json *.js *.css *.html *.py
