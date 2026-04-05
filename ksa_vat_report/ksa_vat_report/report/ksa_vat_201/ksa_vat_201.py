@@ -156,7 +156,6 @@ def _classify_invoices(doctype, tax_child_table, company, from_date, to_date):
         f"""
         SELECT
             name,
-            is_return,
             base_net_total,
             base_total_taxes_and_charges
         FROM
@@ -209,10 +208,12 @@ def _classify_invoices(doctype, tax_child_table, company, from_date, to_date):
     }
 
     for inv in invoices:
-        sign = -1 if flt(inv.is_return) else 1
-        net  = flt(inv.base_net_total) * sign
-        tax  = flt(inv.base_total_taxes_and_charges) * sign
-        row  = tax_map.get(inv.name)
+        # ERPNext already stores return (credit note) amounts as negative
+        # in base_net_total and base_total_taxes_and_charges, so no manual
+        # sign flip is needed — doing so would double-negate and inflate totals.
+        net = flt(inv.base_net_total)
+        tax = flt(inv.base_total_taxes_and_charges)
+        row = tax_map.get(inv.name)
 
         if row:
             if flt(row.max_rate) > 0:
