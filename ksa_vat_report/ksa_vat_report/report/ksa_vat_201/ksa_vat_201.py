@@ -15,9 +15,12 @@ Classification logic:
 Credit notes (is_return = 1) are subtracted from their respective totals.
 
 When "Show Details" is checked, every invoice is listed under its respective
-VAT box with full audit trail (invoice #, date, party, net amount, VAT).
+VAT box with full audit trail columns:
+  VAT Type, Date, Reference, Account/Customer/Supplier, Description,
+  VAT Period, Exclusive, Inclusive, Tax, VAT Name
 """
 
+import math
 import frappe
 from frappe import _
 from frappe.utils import flt
@@ -34,68 +37,43 @@ def execute(filters=None):
 
 def _get_columns(show_details=False):
     cols = [
-        {
-            "label": _("Box"),
-            "fieldname": "box",
-            "fieldtype": "Data",
-            "width": 60,
-        },
-        {
-            "label": _("Description"),
-            "fieldname": "description",
-            "fieldtype": "Data",
-            "width": 400,
-        },
+        {"label": _("Box"),         "fieldname": "box",         "fieldtype": "Data", "width": 60},
+        {"label": _("Description"), "fieldname": "description", "fieldtype": "Data", "width": 360},
     ]
 
     if show_details:
         cols += [
-            {
-                "label": _("Invoice"),
-                "fieldname": "invoice",
-                "fieldtype": "Dynamic Link",
-                "options": "invoice_type",
-                "width": 180,
-            },
-            {
-                "label": _("Invoice Type"),
-                "fieldname": "invoice_type",
-                "fieldtype": "Data",
-                "width": 0,    # hidden helper column
-                "hidden": 1,
-            },
-            {
-                "label": _("Posting Date"),
-                "fieldname": "posting_date",
-                "fieldtype": "Date",
-                "width": 110,
-            },
-            {
-                "label": _("Party"),
-                "fieldname": "party",
-                "fieldtype": "Data",
-                "width": 200,
-            },
+            {"label": _("VAT Type"),    "fieldname": "vat_type",    "fieldtype": "Data",         "width": 130},
+            {"label": _("Date"),        "fieldname": "posting_date","fieldtype": "Date",         "width": 100},
+            {"label": _("Reference"),   "fieldname": "invoice",     "fieldtype": "Dynamic Link", "options": "invoice_type", "width": 160},
+            {"label": _("Invoice Type"),"fieldname": "invoice_type","fieldtype": "Data",         "width": 0, "hidden": 1},
+            {"label": _("Account"),     "fieldname": "party",       "fieldtype": "Data",         "width": 180},
+            {"label": _("Description"), "fieldname": "doc_description", "fieldtype": "Data",     "width": 140},
+            {"label": _("VAT Period"),  "fieldname": "vat_period",  "fieldtype": "Data",         "width": 90},
         ]
 
     cols += [
-        {
-            "label": _("Taxable Amount (SAR)"),
-            "fieldname": "taxable_amount",
-            "fieldtype": "Currency",
-            "options": "currency",
-            "width": 200,
-        },
-        {
-            "label": _("VAT Amount (SAR)"),
-            "fieldname": "vat_amount",
-            "fieldtype": "Currency",
-            "options": "currency",
-            "width": 200,
-        },
+        {"label": _("Exclusive (SAR)"), "fieldname": "exclusive",  "fieldtype": "Currency", "options": "currency", "width": 150},
+        {"label": _("Tax (SAR)"),       "fieldname": "tax",        "fieldtype": "Currency", "options": "currency", "width": 140},
     ]
 
+    if show_details:
+        cols += [
+            {"label": _("Inclusive (SAR)"), "fieldname": "inclusive", "fieldtype": "Currency", "options": "currency", "width": 150},
+            {"label": _("VAT Name"),        "fieldname": "vat_name", "fieldtype": "Data",     "width": 180},
+        ]
+
     return cols
+
+
+# ─── Quarter helper ───────────────────────────────────────────────────────────
+
+def _quarter_label(posting_date):
+    """Return 'Q1' … 'Q4' based on month."""
+    if not posting_date:
+        return ""
+    month = posting_date.month if hasattr(posting_date, "month") else int(str(posting_date).split("-")[1])
+    return "Q{}".format(math.ceil(month / 3))
 
 
 # ─── Data ─────────────────────────────────────────────────────────────────────
@@ -109,30 +87,30 @@ def _get_data(filters, show_details=False):
     purchases = _classify_invoices("Purchase Invoice", "Purchase Taxes and Charges", company, from_date, to_date)
 
     # Section A totals
-    a1_taxable = flt(sales["standard_taxable"])
-    a1_vat     = flt(sales["standard_vat"])
-    a2_taxable = flt(sales["zero_taxable"])
-    a3_taxable = flt(sales["exempt_taxable"])
-    a4_taxable = a1_taxable + a2_taxable + a3_taxable
-    a4_vat     = a1_vat
+    a1_exclusive = flt(sales["standard_taxable"])
+    a1_tax       = flt(sales["standard_vat"])
+    a2_exclusive = flt(sales["zero_taxable"])
+    a3_exclusive = flt(sales["exempt_taxable"])
+    a4_exclusive = a1_exclusive + a2_exclusive + a3_exclusive
+    a4_tax       = a1_tax
 
     # Section B totals
-    b5_taxable = flt(purchases["standard_taxable"])
-    b5_vat     = flt(purchases["standard_vat"])
-    b8_taxable = flt(purchases["exempt_taxable"])
-    b9_taxable = b5_taxable + flt(purchases["zero_taxable"]) + b8_taxable
-    b9_vat     = b5_vat
+    b5_exclusive = flt(purchases["standard_taxable"])
+    b5_tax       = flt(purchases["standard_vat"])
+    b8_exclusive = flt(purchases["exempt_taxable"])
+    b9_exclusive = b5_exclusive + flt(purchases["zero_taxable"]) + b8_exclusive
+    b9_tax       = b5_tax
 
     # Section C — net VAT
-    c10_vat = a1_vat
-    c12_vat = c10_vat
-    c13_vat = b5_vat
-    c15_vat = c13_vat
-    c16_vat = c12_vat - c15_vat
+    c10_tax = a1_tax
+    c12_tax = c10_tax
+    c13_tax = b5_tax
+    c15_tax = c13_tax
+    c16_tax = c12_tax - c15_tax
 
     label_c16 = (
         _("NET VAT DUE — Payable to ZATCA")
-        if c16_vat >= 0
+        if c16_tax >= 0
         else _("NET VAT REFUNDABLE from ZATCA")
     )
 
@@ -141,101 +119,117 @@ def _get_data(filters, show_details=False):
     # ── Section A ─────────────────────────────────────────────────────────────
     rows.append(_section(_("SECTION A: VAT ON SALES AND ALL OTHER OUTPUTS")))
 
-    rows.append(_row("1", _("Standard rated sales (15% VAT)"), a1_taxable, a1_vat))
+    rows.append(_summary("1", _("Standard rated sales (15% VAT)"), a1_exclusive, a1_tax))
     if show_details:
-        rows += _detail_rows(sales["standard_invoices"], "Sales Invoice")
+        rows += _detail_rows(sales["standard_invoices"], "Sales Invoice", "Standard Rated")
 
-    rows.append(_row("2", _("Zero rated sales (0% VAT — exports and qualifying supplies)"), a2_taxable, 0.0))
+    rows.append(_summary("2", _("Zero rated sales (0% VAT — exports and qualifying supplies)"), a2_exclusive, 0.0))
     if show_details:
-        rows += _detail_rows(sales["zero_invoices"], "Sales Invoice")
+        rows += _detail_rows(sales["zero_invoices"], "Sales Invoice", "Zero Rated")
 
-    rows.append(_row("3", _("Exempt sales (no VAT applicable)"), a3_taxable, None))
+    rows.append(_summary("3", _("Exempt sales (no VAT applicable)"), a3_exclusive, None))
     if show_details:
-        rows += _detail_rows(sales["exempt_invoices"], "Sales Invoice")
+        rows += _detail_rows(sales["exempt_invoices"], "Sales Invoice", "Exempt")
 
-    rows.append(_row("4", _("Total sales"), a4_taxable, a4_vat, bold=True))
+    rows.append(_summary("4", _("Total sales"), a4_exclusive, a4_tax, bold=True))
     rows.append(_spacer())
 
     # ── Section B ─────────────────────────────────────────────────────────────
     rows.append(_section(_("SECTION B: VAT ON PURCHASES AND ALL OTHER INPUTS")))
 
-    rows.append(_row("5", _("Standard rated domestic purchases (15% VAT)"), b5_taxable, b5_vat))
+    rows.append(_summary("5", _("Standard rated domestic purchases (15% VAT)"), b5_exclusive, b5_tax))
     if show_details:
-        rows += _detail_rows(purchases["standard_invoices"], "Purchase Invoice")
+        rows += _detail_rows(purchases["standard_invoices"], "Purchase Invoice", "Standard Rated")
 
-    rows.append(_row("6", _("Imports subject to VAT (paid at customs)"), 0.0, 0.0))
-    rows.append(_row("7", _("Imports subject to VAT — reverse charge mechanism"), 0.0, 0.0))
+    rows.append(_summary("6", _("Imports subject to VAT (paid at customs)"), 0.0, 0.0))
+    rows.append(_summary("7", _("Imports subject to VAT — reverse charge mechanism"), 0.0, 0.0))
 
-    rows.append(_row("8", _("Exempt purchases"), b8_taxable, None))
+    rows.append(_summary("8", _("Exempt purchases"), b8_exclusive, None))
     if show_details:
-        rows += _detail_rows(purchases["exempt_invoices"], "Purchase Invoice")
+        rows += _detail_rows(purchases["exempt_invoices"], "Purchase Invoice", "Exempt")
 
-    rows.append(_row("9", _("Total purchases"), b9_taxable, b9_vat, bold=True))
+    rows.append(_summary("9", _("Total purchases"), b9_exclusive, b9_tax, bold=True))
     rows.append(_spacer())
 
     # ── Section C ─────────────────────────────────────────────────────────────
     rows.append(_section(_("SECTION C: NET VAT DUE")))
-    rows.append(_row("10", _("Total VAT due (output VAT from Box 1)"),            None, c10_vat))
-    rows.append(_row("11", _("Corrections from previous period"),                 None, 0.0))
-    rows.append(_row("12", _("Total VAT due (Box 10 + Box 11)"),                  None, c12_vat, bold=True))
-    rows.append(_row("13", _("Total eligible input VAT (Box 5 + Box 6 + Box 7)"), None, c13_vat))
-    rows.append(_row("14", _("Corrections from previous period (input VAT)"),     None, 0.0))
-    rows.append(_row("15", _("Total eligible input VAT (Box 13 + Box 14)"),       None, c15_vat, bold=True))
-    rows.append(_row("16", label_c16,                                              None, c16_vat, bold=True))
+    rows.append(_summary("10", _("Total VAT due (output VAT from Box 1)"),            None, c10_tax))
+    rows.append(_summary("11", _("Corrections from previous period"),                 None, 0.0))
+    rows.append(_summary("12", _("Total VAT due (Box 10 + Box 11)"),                  None, c12_tax, bold=True))
+    rows.append(_summary("13", _("Total eligible input VAT (Box 5 + Box 6 + Box 7)"), None, c13_tax))
+    rows.append(_summary("14", _("Corrections from previous period (input VAT)"),     None, 0.0))
+    rows.append(_summary("15", _("Total eligible input VAT (Box 13 + Box 14)"),       None, c15_tax, bold=True))
+    rows.append(_summary("16", label_c16,                                              None, c16_tax, bold=True))
 
     return rows
 
 
-# ─── Helpers ──────────────────────────────────────────────────────────────────
+# ─── Row builders ─────────────────────────────────────────────────────────────
 
-def _row(box, description, taxable_amount, vat_amount, bold=False):
-    return {
+_EMPTY_DETAIL = {
+    "vat_type": None, "posting_date": None, "invoice": None,
+    "invoice_type": None, "party": None, "doc_description": None,
+    "vat_period": None, "inclusive": None, "vat_name": None,
+}
+
+
+def _summary(box, description, exclusive, tax, bold=False):
+    row = {
         "box": box,
         "description": description,
-        "invoice": None,
-        "invoice_type": None,
-        "posting_date": None,
-        "party": None,
-        "taxable_amount": taxable_amount,
-        "vat_amount": vat_amount,
+        "exclusive": exclusive,
+        "tax": tax,
         "bold": 1 if bold else 0,
         "indent": 0,
     }
+    row.update(_EMPTY_DETAIL)
+    return row
 
 
 def _section(label):
-    return {
-        "box": "", "description": label,
-        "invoice": None, "invoice_type": None, "posting_date": None, "party": None,
-        "taxable_amount": None, "vat_amount": None,
-        "bold": 1, "indent": 0,
-    }
+    row = {"box": "", "description": label, "exclusive": None, "tax": None, "bold": 1, "indent": 0}
+    row.update(_EMPTY_DETAIL)
+    return row
 
 
 def _spacer():
-    return {
-        "box": "", "description": "",
-        "invoice": None, "invoice_type": None, "posting_date": None, "party": None,
-        "taxable_amount": None, "vat_amount": None,
-        "bold": 0, "indent": 0,
-    }
+    row = {"box": "", "description": "", "exclusive": None, "tax": None, "bold": 0, "indent": 0}
+    row.update(_EMPTY_DETAIL)
+    return row
 
 
-def _detail_rows(invoices, doctype):
+def _detail_rows(invoices, doctype, vat_type_label):
     """Return indented detail rows for a list of classified invoices."""
     rows = []
     party_field = "customer_name" if doctype == "Sales Invoice" else "supplier_name"
 
     for inv in invoices:
+        is_return = flt(inv.get("is_return"))
+        exclusive = flt(inv["base_net_total"])
+        tax_amt   = flt(inv["base_total_taxes_and_charges"])
+        inclusive  = exclusive + tax_amt
+
+        if is_return:
+            doc_desc = _("{} Return").format(
+                _("Sales") if doctype == "Sales Invoice" else _("Purchase")
+            )
+        else:
+            doc_desc = _("Sales Invoice") if doctype == "Sales Invoice" else _("Purchase Invoice")
+
         rows.append({
             "box": "",
-            "description": _("Return") if inv.get("is_return") else "",
+            "description": "",
+            "vat_type": _(vat_type_label),
+            "posting_date": inv["posting_date"],
             "invoice": inv["name"],
             "invoice_type": doctype,
-            "posting_date": inv["posting_date"],
             "party": inv.get(party_field, ""),
-            "taxable_amount": flt(inv["base_net_total"]),
-            "vat_amount": flt(inv["base_total_taxes_and_charges"]),
+            "doc_description": doc_desc,
+            "vat_period": _quarter_label(inv["posting_date"]),
+            "exclusive": exclusive,
+            "tax": tax_amt,
+            "inclusive": inclusive,
+            "vat_name": inv.get("vat_name", ""),
             "bold": 0,
             "indent": 1,
         })
@@ -254,6 +248,9 @@ def _classify_invoices(doctype, tax_child_table, company, from_date, to_date):
     Returns a dict with:
       standard_taxable, standard_vat, zero_taxable, exempt_taxable   (summary)
       standard_invoices, zero_invoices, exempt_invoices              (detail rows)
+
+    Each invoice dict also carries 'vat_name' — the description from the
+    highest-rate tax row (e.g. "Standard Rate 15%").
     """
     party_field = "customer_name" if doctype == "Sales Invoice" else "supplier_name"
 
@@ -288,25 +285,40 @@ def _classify_invoices(doctype, tax_child_table, company, from_date, to_date):
 
     invoice_names = [d.name for d in invoices]
 
-    # One query to get the max tax rate per invoice (tells us standard vs zero)
+    # Get max tax rate + the description of the tax row with the highest rate
+    # per invoice.  We use a sub-query to pick the description belonging to
+    # the row with MAX(rate).
     tax_rows = frappe.db.sql(
         f"""
         SELECT
-            parent,
-            SUM(tax_amount_after_discount_amount) AS total_tax,
-            MAX(rate)                              AS max_rate
+            t.parent,
+            SUM(t.tax_amount_after_discount_amount) AS total_tax,
+            MAX(t.rate)                              AS max_rate,
+            (
+                SELECT t2.description
+                FROM   `tab{tax_child_table}` t2
+                WHERE  t2.parent = t.parent
+                  AND  t2.charge_type IN (
+                           'On Net Total',
+                           'On Previous Row Total',
+                           'On Previous Row Amount',
+                           'On Item Quantity'
+                       )
+                ORDER BY t2.rate DESC
+                LIMIT 1
+            ) AS vat_name
         FROM
-            `tab{tax_child_table}`
+            `tab{tax_child_table}` t
         WHERE
-            parent IN %(names)s
-            AND charge_type IN (
+            t.parent IN %(names)s
+            AND t.charge_type IN (
                 'On Net Total',
                 'On Previous Row Total',
                 'On Previous Row Amount',
                 'On Item Quantity'
             )
         GROUP BY
-            parent
+            t.parent
         """,
         {"names": invoice_names},
         as_dict=True,
@@ -331,6 +343,9 @@ def _classify_invoices(doctype, tax_child_table, company, from_date, to_date):
         net = flt(inv.base_net_total)
         tax = flt(inv.base_total_taxes_and_charges)
         row = tax_map.get(inv.name)
+
+        # Attach vat_name to the invoice dict for detail rows
+        inv["vat_name"] = row.vat_name if row else ""
 
         if row:
             if flt(row.max_rate) > 0:
