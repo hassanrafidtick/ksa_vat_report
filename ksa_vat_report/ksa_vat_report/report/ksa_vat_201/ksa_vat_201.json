@@ -26,6 +26,13 @@
    "fieldtype": "Date",
    "label": "To Date",
    "mandatory": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "show_details",
+   "fieldtype": "Check",
+   "label": "Show Details",
+   "mandatory": 0
   }
  ],
  "idx": 0,

@@ -9,7 +9,7 @@ description = "KSA VAT 201 Report for ERPNext — Saudi VAT return form"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "license.txt" }
-version = "0.1.1"
+version = "0.1.2"
 
 dependencies = [
     "frappe>=15.0.0,<17.0.0",
