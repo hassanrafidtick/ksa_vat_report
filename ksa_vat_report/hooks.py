@@ -9,3 +9,8 @@ app_license = "MIT"
 app_version = app_version
 
 required_apps = ["frappe", "erpnext"]
+
+# Jinja
+jinja = {
+    "methods": ["ksa_vat_report.jinja.money_in_words_ar"]
+}
