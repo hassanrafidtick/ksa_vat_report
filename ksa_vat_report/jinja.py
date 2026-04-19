@@ -1,4 +1,17 @@
+import json
 from num2words import num2words
+
+
+def parse_json_safe(value):
+    """Safely parse a JSON string into a dict. Returns {} on failure."""
+    if not value:
+        return {}
+    if isinstance(value, dict):
+        return value
+    try:
+        return json.loads(value)
+    except Exception:
+        return {}
 
 
 def money_in_words_ar(amount, currency_name="ريال سعودي", fraction_name="هللة"):

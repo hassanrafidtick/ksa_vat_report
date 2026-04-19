@@ -12,5 +12,8 @@ required_apps = ["frappe", "erpnext"]
 
 # Jinja
 jinja = {
-    "methods": ["ksa_vat_report.jinja.money_in_words_ar"]
+    "methods": [
+        "ksa_vat_report.jinja.money_in_words_ar",
+        "ksa_vat_report.jinja.parse_json_safe",
+    ]
 }
