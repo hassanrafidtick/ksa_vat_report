@@ -51,6 +51,15 @@
   },
   {
    "role": "System Manager"
+  },
+  {
+   "role": "ZATCA Accountant"
+  },
+  {
+   "role": "ZATCA Business Admin"
+  },
+  {
+   "role": "ZATCA Configuration Manager"
   }
  ]
 }

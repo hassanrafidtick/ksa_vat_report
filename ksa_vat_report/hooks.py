@@ -10,6 +10,13 @@ app_version = app_version
 
 required_apps = ["frappe", "erpnext"]
 
+# Install / migrate hooks
+after_install = "ksa_vat_report.install.after_install"
+after_migrate = "ksa_vat_report.install.after_migrate"
+
+# Fixtures — exported via bench export-fixtures
+fixtures = ["Role"]
+
 # Jinja
 jinja = {
     "methods": [

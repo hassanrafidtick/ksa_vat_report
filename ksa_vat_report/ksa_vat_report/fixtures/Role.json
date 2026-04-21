@@ -1,0 +1,23 @@
+[
+  {
+    "doctype": "Role",
+    "name": "ZATCA Configuration Manager",
+    "role_name": "ZATCA Configuration Manager",
+    "desk_access": 1,
+    "is_custom": 1
+  },
+  {
+    "doctype": "Role",
+    "name": "ZATCA Accountant",
+    "role_name": "ZATCA Accountant",
+    "desk_access": 1,
+    "is_custom": 1
+  },
+  {
+    "doctype": "Role",
+    "name": "ZATCA Business Admin",
+    "role_name": "ZATCA Business Admin",
+    "desk_access": 1,
+    "is_custom": 1
+  }
+]
